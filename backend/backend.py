@@ -30,8 +30,8 @@ SMTP_PORT = 587
 # ---------------- Gemini Setup ---------------- #
 GENAI_API_KEY = os.environ.get("GOOGLE_API_KEY")  # Use your direct Gemini API key
 genai.configure(api_key=GENAI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
-GENAI_MODEL_NAME = os.environ.get("GENAI_MODEL_NAME", "gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-2.5-pro")
+GENAI_MODEL_NAME = os.environ.get("GENAI_MODEL_NAME", "gemini-2.5-pro")
 
 # ---------------- Speech-to-Text Setup ---------------- #
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"E:\GenAI\ai_career_mentor\aicareermentor-cad4b3fb19d5.json"
