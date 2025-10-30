@@ -14,12 +14,15 @@ import cv2
 import numpy as np
 from pydub import AudioSegment
 import tempfile
+import requests
 #from deepface import DeepFace
 import plotly.graph_objects as go
 import plotly.express as px
 from collections import defaultdict
 #from deepface import DeepFace
 #DeepFace.build_model("ArcFace")  # ensures PyTorch backend
+from dotenv import load_dotenv
+load_dotenv()
 
 # -------------------------
 # Firebase Initialization
@@ -27,7 +30,7 @@ from collections import defaultdict
 if not firebase_admin._apps:
     try:
         # Use environment variable for credentials path
-        cred_path = os.environ.get("FIREBASE_CREDENTIALS", "aicareermentor-1b611-firebase-adminsdk-fbsvc-891358d987.json")
+        cred_path = os.environ.get("FIREBASE_CREDENTIALS", "aicareermentor-1b611-firebase-adminsdk-fbsvc-e20fe87c4d.json")
         cred = credentials.Certificate(cred_path)
         firebase_admin.initialize_app(cred)
         db = firestore.client()
@@ -52,230 +55,582 @@ st.set_page_config(
 # -------------------------
 st.markdown("""
     <style>
-    /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    /* Import Modern Font */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
     * {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Poppins', sans-serif;
     }
 
-    /* Main Theme */
+    /* Sunset Theme Background */
     .main {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        background-attachment: fixed;
+        background: linear-gradient(135deg, #ff6b6b 0%, #feca57 25%, #ee5a6f 50%, #ff9ff3 75%, #feca57 100%);
+        background-size: 400% 400%;
+        animation: gradientFlow 15s ease infinite;
+        min-height: 100vh;
+        position: relative;
+    }
+
+    @keyframes gradientFlow {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    .main::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 20% 30%, rgba(255, 107, 107, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 80% 70%, rgba(254, 202, 87, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 50% 50%, rgba(238, 90, 111, 0.15) 0%, transparent 60%);
+        pointer-events: none;
     }
 
     .block-container {
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 20px;
-        padding: 2rem;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(30px) saturate(180%);
+        border-radius: 32px;
+        padding: 3rem;
+        box-shadow: 
+            0 30px 90px rgba(255, 107, 107, 0.25),
+            0 0 0 1px rgba(255, 255, 255, 0.5),
+            inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        max-width: 1200px;
+        margin: 2rem auto;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        position: relative;
     }
 
-    /* Enhanced Cards */
+    /* Neumorphic Cards */
     .card {
-        border: none;
-        border-radius: 15px;
-        padding: 24px;
-        background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
-        transition: all 0.3s ease;
-        margin-bottom: 20px;
+        background: linear-gradient(145deg, #ffffff, #ffe5e5);
+        border-radius: 24px;
+        padding: 32px;
+        box-shadow: 
+            12px 12px 24px rgba(238, 90, 111, 0.1),
+            -12px -12px 24px rgba(255, 255, 255, 0.9),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-bottom: 28px;
+        position: relative;
+        border: 1px solid rgba(255, 107, 107, 0.1);
+    }
+
+    .card::after {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60%;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, #ff6b6b, #feca57, transparent);
+        border-radius: 3px;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+    }
+
+    .card:hover::after {
+        opacity: 1;
     }
 
     .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+        transform: translateY(-10px) rotateX(2deg);
+        box-shadow: 
+            16px 16px 32px rgba(238, 90, 111, 0.15),
+            -16px -16px 32px rgba(255, 255, 255, 1),
+            0 20px 40px rgba(255, 107, 107, 0.2);
     }
 
     .card h3 {
-        color: #667eea;
-        font-weight: 600;
-        margin-bottom: 12px;
+        color: #2d3436;
+        font-weight: 700;
+        font-size: 1.6rem;
+        margin-bottom: 18px;
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 50%, #feca57 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-family: 'Space Grotesk', sans-serif;
     }
 
-    /* Stats Card */
+    /* Vibrant Stats Card */
     .stat-card {
-        background: white;
-        border-radius: 12px;
-        padding: 20px;
+        background: linear-gradient(135deg, #fff5f5 0%, #fffbea 100%);
+        border-radius: 20px;
+        padding: 28px;
         text-align: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        border-left: 4px solid #667eea;
+        box-shadow: 
+            8px 8px 20px rgba(255, 107, 107, 0.1),
+            -8px -8px 20px rgba(255, 255, 255, 0.9);
+        border: 2px solid rgba(254, 202, 87, 0.2);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.4s ease;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: conic-gradient(
+            from 0deg,
+            transparent 0deg,
+            rgba(255, 107, 107, 0.1) 90deg,
+            transparent 180deg
+        );
+        animation: rotate 4s linear infinite;
+    }
+
+    @keyframes rotate {
+        100% { transform: rotate(360deg); }
+    }
+
+    .stat-card:hover {
+        transform: scale(1.05) translateY(-5px);
+        box-shadow: 
+            12px 12px 30px rgba(255, 107, 107, 0.15),
+            -12px -12px 30px rgba(255, 255, 255, 1);
     }
 
     .stat-number {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #667eea;
-        margin: 10px 0;
+        font-size: 3.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 16px 0;
+        line-height: 1;
+        position: relative;
+        z-index: 1;
+        font-family: 'Space Grotesk', sans-serif;
     }
 
     .stat-label {
-        color: #6b7280;
+        color: #636e72;
         font-size: 0.9rem;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 1.5px;
+        margin-top: 10px;
+        position: relative;
+        z-index: 1;
     }
 
-    /* Result Block */
+    /* Warm Result Block */
     .result-block {
-        background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
-        padding: 20px;
-        border-radius: 12px;
-        border-left: 4px solid #667eea;
-        margin: 15px 0;
+        background: linear-gradient(135deg, #fff5f5 0%, #fffbea 100%);
+        padding: 28px;
+        border-radius: 20px;
+        border-left: 6px solid #ff6b6b;
+        margin: 24px 0;
+        box-shadow: 
+            0 8px 24px rgba(255, 107, 107, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        position: relative;
+        overflow: hidden;
     }
 
-    /* Success/Warning/Error Messages */
+    .result-block::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 200px;
+        height: 200px;
+        background: radial-gradient(circle, rgba(254, 202, 87, 0.15) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    /* Colorful Status Boxes */
     .success-box {
-        background: #d1fae5;
-        border-left: 4px solid #10b981;
-        padding: 15px;
-        border-radius: 8px;
-        margin: 10px 0;
+        background: linear-gradient(135deg, #d1f2eb 0%, #a8e6cf 100%);
+        border-left: 6px solid #00b894;
+        padding: 20px 24px;
+        border-radius: 16px;
+        margin: 14px 0;
+        box-shadow: 
+            0 6px 20px rgba(0, 184, 148, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .success-box:hover {
+        transform: translateX(8px);
+        box-shadow: 0 8px 28px rgba(0, 184, 148, 0.2);
+    }
+
+    .success-box::before {
+        content: '✓';
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, #00b894, #00cec9);
+        color: white;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
     }
 
     .warning-box {
-        background: #fef3c7;
-        border-left: 4px solid #f59e0b;
-        padding: 15px;
-        border-radius: 8px;
-        margin: 10px 0;
+        background: linear-gradient(135deg, #fff4e6 0%, #ffe8cc 100%);
+        border-left: 6px solid #fdcb6e;
+        padding: 20px 24px;
+        border-radius: 16px;
+        margin: 14px 0;
+        box-shadow: 
+            0 6px 20px rgba(253, 203, 110, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: all 0.3s ease;
     }
 
-    /* Progress Bar */
+    .warning-box:hover {
+        transform: translateX(8px);
+        box-shadow: 0 8px 28px rgba(253, 203, 110, 0.2);
+    }
+
+    .warning-box::before {
+        content: '⚠';
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, #fdcb6e, #ffeaa7);
+        color: #2d3436;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(253, 203, 110, 0.3);
+    }
+
+    .error-box {
+        background: linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%);
+        border-left: 6px solid #d63031;
+        padding: 20px 24px;
+        border-radius: 16px;
+        margin: 14px 0;
+        box-shadow: 
+            0 6px 20px rgba(214, 48, 49, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .error-box:hover {
+        transform: translateX(8px);
+        box-shadow: 0 8px 28px rgba(214, 48, 49, 0.2);
+    }
+
+    .error-box::before {
+        content: '✕';
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, #d63031, #ff7675);
+        color: white;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(214, 48, 49, 0.3);
+    }
+
+    /* Vibrant Progress Bar */
     .progress-container {
-        background: #e5e7eb;
-        border-radius: 10px;
-        height: 20px;
+        background: rgba(255, 235, 235, 0.5);
+        border-radius: 16px;
+        height: 28px;
         overflow: hidden;
-        margin: 15px 0;
+        margin: 24px 0;
+        box-shadow: inset 0 3px 8px rgba(255, 107, 107, 0.1);
+        border: 2px solid rgba(255, 107, 107, 0.1);
     }
 
     .progress-bar {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(90deg, #ff6b6b 0%, #feca57 25%, #ff6b6b 50%, #feca57 75%, #ff6b6b 100%);
+        background-size: 200% 100%;
         height: 100%;
-        border-radius: 10px;
-        transition: width 0.3s ease;
+        border-radius: 14px;
+        transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
-        font-weight: 600;
-        font-size: 0.85rem;
+        font-weight: 700;
+        font-size: 0.9rem;
+        animation: progressShine 2s ease infinite;
+        box-shadow: 
+            0 3px 15px rgba(255, 107, 107, 0.5),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
 
-    /* Buttons */
+    @keyframes progressShine {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+
+    /* Bold Buttons */
     .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 50%, #feca57 100%);
+        background-size: 200% 100%;
         color: white;
         border: none;
-        border-radius: 10px;
-        padding: 12px 24px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        border-radius: 16px;
+        padding: 16px 36px;
+        font-weight: 700;
+        font-size: 1.05rem;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 
+            0 6px 20px rgba(255, 107, 107, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .stButton > button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.6s ease;
+    }
+
+    .stButton > button:hover::before {
+        left: 100%;
     }
 
     .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        background-position: 100% 0;
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 
+            0 10px 30px rgba(255, 107, 107, 0.5),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
     }
 
-    /* Input Fields */
+    .stButton > button:active {
+        transform: translateY(-1px) scale(0.98);
+        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+    }
+
+    /* Soft Input Fields */
     .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea {
-        border-radius: 10px;
-        border: 2px solid #e5e7eb;
-        padding: 12px;
-        transition: all 0.3s ease;
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div > select {
+        border-radius: 16px;
+        border: 2px solid #ffe8e8;
+        padding: 16px 18px;
+        font-size: 1rem;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        background: linear-gradient(135deg, #ffffff 0%, #fff5f5 100%);
+        color: #2d3436;
+        box-shadow: 
+            inset 0 2px 6px rgba(255, 107, 107, 0.05),
+            0 2px 8px rgba(255, 107, 107, 0.08);
     }
 
     .stTextInput > div > div > input:focus,
-    .stTextArea > div > div > textarea:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    .stTextArea > div > div > textarea:focus,
+    .stSelectbox > div > div > select:focus {
+        border-color: #ff6b6b;
+        box-shadow: 
+            0 0 0 4px rgba(255, 107, 107, 0.15),
+            0 6px 20px rgba(255, 107, 107, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        outline: none;
+        background: white;
     }
 
-    /* Sidebar */
-    .css-1d391kg {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    /* Warm Sidebar */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #2d3436 0%, #1a1a1a 100%);
+        border-right: 3px solid rgba(255, 107, 107, 0.3);
     }
 
-    /* Small Muted Text */
+    [data-testid="stSidebar"] * {
+        color: #ffeaa7 !important;
+    }
+
+    /* Typography */
+    h1, h2, h3, h4, h5, h6 {
+        font-weight: 700;
+        color: #2d3436;
+        font-family: 'Space Grotesk', sans-serif;
+    }
+
     .small-muted {
-        color: #6b7280;
-        font-size: 0.875rem;
-        line-height: 1.5;
+        color: #636e72;
+        font-size: 0.9rem;
+        line-height: 1.7;
     }
 
-    /* Badge */
+    /* Colorful Badges */
     .badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.75rem;
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        border-radius: 28px;
+        font-size: 0.85rem;
         font-weight: 600;
-        margin: 4px;
+        margin: 8px 6px;
+        transition: all 0.3s ease;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .badge:hover {
+        transform: scale(1.08) translateY(-2px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
     }
 
     .badge-success {
-        background: #d1fae5;
-        color: #065f46;
+        background: linear-gradient(135deg, #a8e6cf 0%, #56cc9d 100%);
+        color: #004d40;
     }
 
     .badge-warning {
-        background: #fef3c7;
-        color: #92400e;
+        background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+        color: #5f4b0a;
     }
 
     .badge-info {
-        background: #dbeafe;
-        color: #1e40af;
+        background: linear-gradient(135deg, #ffeaa7 0%, #ffcccc 100%);
+        color: #5f4b0a;
     }
 
-    /* Interview Score Card */
+    .badge-primary {
+        background: linear-gradient(135deg, #ff7675 0%, #fd79a8 100%);
+        color: #ffffff;
+    }
+
+    /* Score Card */
     .score-card {
-        background: white;
-        border-radius: 15px;
-        padding: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        margin: 15px 0;
+        background: linear-gradient(135deg, #ffffff 0%, #fff5f5 100%);
+        border-radius: 24px;
+        padding: 32px;
+        box-shadow: 
+            12px 12px 28px rgba(255, 107, 107, 0.12),
+            -12px -12px 28px rgba(255, 255, 255, 0.9),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        border: 2px solid rgba(255, 107, 107, 0.1);
+        margin: 24px 0;
+        transition: all 0.4s ease;
+    }
+
+    .score-card:hover {
+        transform: translateY(-6px) scale(1.01);
+        box-shadow: 
+            16px 16px 36px rgba(255, 107, 107, 0.15),
+            -16px -16px 36px rgba(255, 255, 255, 1);
     }
 
     .score-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 3px solid #ffe8e8;
     }
 
     .score-value {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #667eea;
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-family: 'Space Grotesk', sans-serif;
     }
 
-    /* Animation */
-    @keyframes slideIn {
+    /* Warm Divider */
+    .divider {
+        height: 3px;
+        background: linear-gradient(90deg, transparent, #ff6b6b, #feca57, transparent);
+        margin: 40px 0;
+        border-radius: 3px;
+    }
+
+    /* Smooth Animations */
+    @keyframes fadeInUp {
         from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(40px) scale(0.95);
         }
         to {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
         }
     }
 
     .animated {
-        animation: slideIn 0.5s ease;
+        animation: fadeInUp 0.7s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* Hide Streamlit Branding */
+    /* Data Table Styling */
+    .dataframe {
+        border-radius: 16px !important;
+        overflow: hidden !important;
+        box-shadow: 0 6px 20px rgba(255, 107, 107, 0.1) !important;
+        border: 2px solid rgba(255, 107, 107, 0.1) !important;
+    }
+
+    /* Hide Streamlit Elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    header {visibility: hidden;}
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #fff5f5;
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+        border-radius: 10px;
+        border: 2px solid #fff5f5;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #ee5a6f 0%, #fdcb6e 100%);
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -1287,6 +1642,61 @@ elif page == "Mock Interview":
             if audio_answer:
                 answer = audio_answer
 
+        # -------------------------
+        # 🎥 Evaluate Your Answer Video
+        # -------------------------
+        st.markdown("---")
+        st.subheader("🎥 Evaluate Your Answer Video")
+        st.markdown("Upload your recorded answer video for AI-based posture and confidence analysis.")
+
+        video_file = st.file_uploader(
+            f"Upload your video answer for Question {idx+1}",
+            type=["mp4", "mov", "avi"],
+            key=f"video_ans_{idx}"
+        )
+
+        if video_file is not None:
+            if st.button("Analyze Video", key=f"analyze_vid_{idx}"):
+                with st.spinner("Analyzing your performance..."):
+                    try:
+                        files = {"file": ("answer.mp4", video_file.read(), "video/mp4")}
+                        resp = requests.post("http://localhost:5000/api/analyze-video", files=files, timeout=120)
+
+                        if resp.status_code == 200:
+                            result = resp.json()
+                            st.success("✅ Video Analysis Complete!")
+                            st.write("### Scores")
+                            for k in ["eye_contact", "confidence", "body_language", "expressiveness",
+                                      "stability", "professional_presence", "engagement", "overall_score"]:
+                                if k in result:
+                                    st.metric(k.replace("_", " ").title(), f"{round(result[k], 2)} / 10")
+
+                            if "detailed_metrics" in result:
+                                st.write("### Detailed Metrics")
+                                st.json(result["detailed_metrics"])
+
+                            st.write("### Feedback")
+                            feedback = result.get("feedback", {})
+                            if feedback.get("strengths"):
+                                st.write("**Strengths:**")
+                                for s in feedback["strengths"]:
+                                    st.write("•", s)
+                            if feedback.get("areas_for_improvement"):
+                                st.write("**Areas for Improvement:**")
+                                for s in feedback["areas_for_improvement"]:
+                                    st.write("•", s)
+                            if feedback.get("specific_tips"):
+                                st.write("**Tips:**")
+                                for s in feedback["specific_tips"]:
+                                    st.write("•", s)
+
+                        else:
+                            st.error(f"Error analyzing video: {resp.status_code} {resp.text}")
+
+                    except Exception as e:
+                        st.error(f"Video analysis failed: {e}")
+
+
         # Action buttons
         col1, col2, col3, col4 = st.columns(4)
 
@@ -1666,26 +2076,66 @@ elif page == "Facial Analysis":
 
                 with st.spinner("🤖 Analyzing facial expression..."):
                     try:
-                        emotion, emotion_scores = analyze_facial_expression(img_array)
+                        with st.spinner("🤖 Analyzing facial expression..."):
+                            try:
+                                # Send the captured image to backend for analysis
+                                import io
+                                import requests
+
+                                buf = io.BytesIO()
+                                image.save(buf, format="PNG")
+                                buf.seek(0)
+                                files = {"file": ("snapshot.png", buf, "image/png")}
+                                resp = requests.post("http://localhost:5000/api/analyze-video", files=files,
+                                                     timeout=120)
+
+                                if resp.status_code == 200:
+                                    result = resp.json()
+                                    st.success("✅ Analysis complete!")
+
+                                    st.markdown("### 💬 Overall Feedback")
+                                    st.json(result.get("feedback", {}))
+
+                                    st.markdown("### 📈 Scores")
+                                    for k in ["eye_contact", "confidence", "body_language", "expressiveness",
+                                              "engagement", "overall_score"]:
+                                        if k in result:
+                                            st.metric(k.replace("_", " ").title(), f"{round(result[k], 2)} / 10")
+
+                                else:
+                                    st.error(f"❌ Error analyzing image: {resp.status_code}")
+                            except Exception as e:
+                                st.error(f"Analysis failed: {e}")
 
                         st.success(f"✅ Analysis complete!")
 
-                        st.markdown(f"### Dominant Emotion: {emotion.title()}")
+                        st.markdown("### Overall Emotional Impression")
 
-                        # Emotion scores chart
-                        if emotion_scores:
-                            emotions = list(emotion_scores.keys())
-                            scores = list(emotion_scores.values())
+                        # Engagement and confidence visualization
+                        if result:
+                            import plotly.express as px
+
+                            metrics = {
+                                "Eye Contact": result.get("eye_contact", 0),
+                                "Confidence": result.get("confidence", 0),
+                                "Body Language": result.get("body_language", 0),
+                                "Expressiveness": result.get("expressiveness", 0),
+                                "Engagement": result.get("engagement", 0),
+                                "Overall": result.get("overall_score", 0)
+                            }
+
+                            x_vals = list(metrics.keys())
+                            y_vals = list(metrics.values())
 
                             fig = px.bar(
-                                x=emotions,
-                                y=scores,
-                                labels={'x': 'Emotion', 'y': 'Confidence (%)'},
-                                title="Emotion Distribution",
-                                color=scores,
+                                x=x_vals,
+                                y=y_vals,
+                                labels={'x': 'Category', 'y': 'Score (/10)'},
+                                title="Interview Presence Breakdown",
+                                color=y_vals,
                                 color_continuous_scale='Blues'
                             )
-                            fig.update_layout(showlegend=False)
+                            fig.update_layout(showlegend=False, yaxis=dict(range=[0, 10]))
                             st.plotly_chart(fig, use_container_width=True)
 
                         # Recommendations based on emotion
@@ -1700,8 +2150,14 @@ elif page == "Facial Analysis":
                             'disgust': "😣 Your expression may seem negative. Maintain a neutral to positive expression."
                         }
 
-                        if emotion in recommendations:
-                            st.info(recommendations[emotion])
+                        st.markdown("### 💡 Recommendations")
+                        if result.get("confidence", 0) < 5:
+                            st.info("Try maintaining steadier eye contact and more open posture to project confidence.")
+                        elif result.get("confidence", 0) > 8:
+                            st.info("Excellent presence! You come across as confident and well-prepared.")
+                        else:
+                            st.info("Good energy. Practice smiling naturally during key moments to enhance engagement.")
+
 
                     except Exception as e:
                         st.error(f"Analysis failed: {e}")
@@ -1734,7 +2190,7 @@ elif page == "Facial Analysis":
     with tab2:
         st.markdown("### 📤 Upload Image for Analysis")
 
-        uploaded_file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png"])
+        uploaded_file = st.file_uploader("Upload an image or short video",type=["jpg", "jpeg", "png", "mp4", "mov", "avi"])
 
         if uploaded_file:
             from PIL import Image
@@ -1747,19 +2203,39 @@ elif page == "Facial Analysis":
                 st.image(image, caption="Uploaded Image", use_container_width=True)
 
             with col2:
-                if st.button("🔍 Analyze Image", use_container_width=True):
-                    img_array = np.array(image)
-
+                if st.button("🔍 Analyze Media", use_container_width=True):
                     with st.spinner("🤖 Analyzing..."):
+                        import requests
+
                         try:
-                            emotion, emotion_scores = analyze_facial_expression(img_array)
+                            # Support both image or short video
+                            files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
+                            resp = requests.post("http://localhost:5000/api/analyze-video", files=files, timeout=120)
 
-                            st.success(f"✅ Dominant Emotion: **{emotion.title()}**")
+                            if resp.status_code == 200:
+                                result = resp.json()
+                                st.success("✅ Analysis Complete!")
 
-                            if emotion_scores:
-                                for emo, score in sorted(emotion_scores.items(), key=lambda x: x[1], reverse=True):
-                                    st.progress(score / 100, text=f"{emo.title()}: {score:.1f}%")
+                                if result:
+                                    st.markdown("### 📈 Scores")
+                                    for k in ["eye_contact", "confidence", "body_language", "expressiveness",
+                                              "engagement",
+                                              "overall_score"]:
+                                        if k in result:
+                                            st.metric(k.replace("_", " ").title(), f"{round(result[k], 2)} / 10")
 
+                                    st.markdown("### 💬 Feedback Summary")
+                                    feedback = result.get("feedback", {})
+                                    if feedback.get("strengths"):
+                                        st.write("**Strengths:**", ", ".join(feedback["strengths"]))
+                                    if feedback.get("areas_for_improvement"):
+                                        st.write("**Areas for Improvement:**",
+                                                 ", ".join(feedback["areas_for_improvement"]))
+                                    if feedback.get("specific_tips"):
+                                        st.write("**Tips:**", ", ".join(feedback["specific_tips"]))
+
+                            else:
+                                st.error(f"Error: {resp.status_code} {resp.text}")
                         except Exception as e:
                             st.error(f"Analysis failed: {e}")
 
@@ -2144,7 +2620,7 @@ elif page == "Profile Settings":
 st.markdown("---")
 st.markdown("""
     <div style="text-align: center; color: #6b7280; padding: 20px;">
-        <p>Made with ❤️ by AI Career Mentor Team | © 2025 All Rights Reserved</p>
+        <p>Made by AIer Team ❤️ | © 2025 All Rights Reserved</p>
         <p style="font-size: 0.875rem;">
             <a href="#" style="color: #667eea; text-decoration: none;">Privacy Policy</a> | 
             <a href="#" style="color: #667eea; text-decoration: none;">Terms of Service</a> | 

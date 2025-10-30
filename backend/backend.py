@@ -21,6 +21,7 @@ import numpy as np
 import cv2
 import base64
 import logging
+from video_analyzer import VideoInterviewAnalyzer
 
 # -------------------------
 # Flask App Setup
@@ -46,7 +47,7 @@ SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 # -------------------------
 if not firebase_admin._apps:
     try:
-        cred_path = os.environ.get("FIREBASE_CREDENTIALS", "aicareermentor-1b611-firebase-adminsdk-fbsvc-891358d987.json")
+        cred_path = os.environ.get("FIREBASE_CREDENTIALS", "E:\GenAI\ai_career_mentor\aicareermentor-1b611-firebase-adminsdk-fbsvc-e20fe87c4d.json")
         cred = credentials.Certificate(cred_path)
         firebase_admin.initialize_app(cred)
         db = firestore.client()
@@ -162,22 +163,24 @@ def convert_audio_to_wav(audio_bytes, input_format="mp3"):
         raise Exception(f"Audio conversion failed: {e}")
 
 
-def analyze_facial_expression(image_data):
-    """Analyze facial expression from image data"""
-    try:
-        # Decode base64 image
-        img_bytes = base64.b64decode(image_data.split(',')[1])
-        nparr = np.frombuffer(img_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+# def analyze_facial_expression(image_data):
+#     """Analyze facial expression from image data"""
+#     try:
+#         # Decode base64 image
+#         img_bytes = base64.b64decode(image_data.split(',')[1])
+#         nparr = np.frombuffer(img_bytes, np.uint8)
+#         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+#
+#         # Analyze the image
+#         # DeepFace disabled due to TensorFlow errors
+#         return {
+#             'dominant_emotion': 'neutral',
+#             'emotions': {}
+#         }
+#     except Exception as e:
+#         raise Exception(f"Facial analysis failed: {e}")
 
-        # Analyze the image
-        # DeepFace disabled due to TensorFlow errors
-        return {
-            'dominant_emotion': 'neutral',
-            'emotions': {}
-        }
-    except Exception as e:
-        raise Exception(f"Facial analysis failed: {e}")
+
 
 
 def schedule_reminder(user_id, reminder_data):
@@ -739,25 +742,53 @@ def speech_to_text():
 # Facial Analysis Routes
 # -------------------------
 
-@app.route('/api/facial-analysis', methods=['POST'])
-@require_auth
-def facial_analysis():
-    """Analyze facial expression"""
+# @app.route('/api/facial-analysis', methods=['POST'])
+# @require_auth
+# def facial_analysis():
+#     """Analyze facial expression"""
+#     try:
+#         data = request.json
+#         image_data = data.get('image')
+#
+#         if not image_data:
+#             return jsonify({"error": "Image data required"}), 400
+#
+#         result = analyze_facial_expression(image_data)
+#
+#         return jsonify(result)
+#
+#     except Exception as e:
+#         logger.error(f"Facial analysis error: {e}")
+#         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analyze-video', methods=['POST'])
+def analyze_video():
+    """Analyze uploaded interview video or image"""
     try:
-        data = request.json
-        image_data = data.get('image')
+        if 'file' not in request.files:
+            return jsonify({"error": "No file uploaded"}), 400
 
-        if not image_data:
-            return jsonify({"error": "Image data required"}), 400
+        file = request.files['file']
+        filename = file.filename.lower()
+        temp_path = os.path.join(tempfile.gettempdir(), filename)
+        file.save(temp_path)
 
-        result = analyze_facial_expression(image_data)
+        analyzer = VideoInterviewAnalyzer()
 
-        return jsonify(result)
+        # Detect if the file is an image (jpg/png)
+        if any(filename.endswith(ext) for ext in ['.jpg', '.jpeg', '.png']):
+            import cv2
+            frame = cv2.imread(temp_path)
+            results = analyzer.analyze_single_frame(frame)
+        else:
+            results = analyzer.analyze_video(temp_path)
+
+        os.remove(temp_path)
+        return jsonify(results)
 
     except Exception as e:
-        logger.error(f"Facial analysis error: {e}")
+        logger.error(f"Video analysis failed: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 # -------------------------
 # Reminder Routes
