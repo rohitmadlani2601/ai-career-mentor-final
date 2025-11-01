@@ -24,13 +24,15 @@ from collections import defaultdict
 from dotenv import load_dotenv
 load_dotenv()
 
+BACKEND_URL = "https://ai-career-mentor-568179172789.us-central1.run.app"
+
 # -------------------------
 # Firebase Initialization
 # -------------------------
 if not firebase_admin._apps:
     try:
         # Use environment variable for credentials path
-        cred_path = os.environ.get("FIREBASE_CREDENTIALS", "aicareermentor-1b611-firebase-adminsdk-fbsvc-e20fe87c4d.json")
+        cred_path = os.environ.get("FIREBASE_CREDENTIALS", "./aicareermentor-1b611-firebase-adminsdk-fbsvc-e20fe87c4d.json")
         cred = credentials.Certificate(cred_path)
         firebase_admin.initialize_app(cred)
         db = firestore.client()
@@ -1660,7 +1662,8 @@ elif page == "Mock Interview":
                 with st.spinner("Analyzing your performance..."):
                     try:
                         files = {"file": ("answer.mp4", video_file.read(), "video/mp4")}
-                        resp = requests.post("http://localhost:5000/api/analyze-video", files=files, timeout=120)
+                        # resp = requests.post("http://localhost:5000/api/analyze-video", files=files, timeout=120)
+                        resp = requests.post(f"{BACKEND_URL}/api/analyze-video", files=files, timeout=120)
 
                         if resp.status_code == 200:
                             result = resp.json()
@@ -2086,8 +2089,8 @@ elif page == "Facial Analysis":
                                 image.save(buf, format="PNG")
                                 buf.seek(0)
                                 files = {"file": ("snapshot.png", buf, "image/png")}
-                                resp = requests.post("http://localhost:5000/api/analyze-video", files=files,
-                                                     timeout=120)
+                                #resp = requests.post("http://localhost:5000/api/analyze-video", files=files, timeout=120)
+                                resp = requests.post(f"{BACKEND_URL}/api/analyze-video", files=files, timeout=120)
 
                                 if resp.status_code == 200:
                                     result = resp.json()
@@ -2210,7 +2213,8 @@ elif page == "Facial Analysis":
                         try:
                             # Support both image or short video
                             files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-                            resp = requests.post("http://localhost:5000/api/analyze-video", files=files, timeout=120)
+                            #resp = requests.post("http://localhost:5000/api/analyze-video", files=files, timeout=120)
+                            resp = requests.post(f"{BACKEND_URL}/api/analyze-video", files=files, timeout=120)
 
                             if resp.status_code == 200:
                                 result = resp.json()

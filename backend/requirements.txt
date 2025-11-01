@@ -1,10 +1,29 @@
+# Core Frameworks
 streamlit
 flask
-requests
-google-cloud-speech
-PyPDF2
-pdfplumber
-apscheduler
-gunicorn
 flask-cors
-google.generativeai
+apscheduler
+
+# Google Cloud & Gemini AI
+google-generativeai
+google-cloud-speech
+google-auth
+google-api-core
+
+# Firebase Integration
+firebase-admin
+
+# File Handling and Utilities
+PyPDF2
+python-dotenv
+pydub
+requests
+
+# Data & Visualization
+plotly
+numpy<2.0.0
+opencv-python-headless
+mediapipe
+
+# Image Processing
+pillow

@@ -1,0 +1,7 @@
+aicareermentor-1b611-firebase-adminsdk-fbsvc-e20fe87c4d.json
+*.json
+.env
+__pycache__/
+*.pyc
+.DS_Store
+venv/
