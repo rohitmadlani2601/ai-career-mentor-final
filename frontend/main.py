@@ -32,7 +32,7 @@ BACKEND_URL = "https://ai-career-mentor-568179172789.us-central1.run.app"
 if not firebase_admin._apps:
     try:
         # Use environment variable for credentials path
-        cred_path = os.environ.get("FIREBASE_CREDENTIALS", "./aicareermentor-1b611-firebase-adminsdk-fbsvc-e20fe87c4d.json")
+        cred_path = os.environ.get("FIREBASE_CREDENTIALS", "aicareermentor-1b611-firebase-adminsdk-fbsvc-e20fe87c4d.json")
         cred = credentials.Certificate(cred_path)
         firebase_admin.initialize_app(cred)
         db = firestore.client()
