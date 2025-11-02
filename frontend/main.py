@@ -609,9 +609,9 @@ st.markdown("""
     }
 
     /* Hide Streamlit Elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* #MainMenu {visibility: hidden;} */
+    /* footer {visibility: hidden;} */
+    /* header {visibility: hidden;} */
 
     /* Scrollbar Styling */
     ::-webkit-scrollbar {
